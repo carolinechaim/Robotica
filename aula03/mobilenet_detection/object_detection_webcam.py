@@ -9,6 +9,8 @@ import numpy as np
 import argparse
 import cv2
 
+
+
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-p", "--prototxt", required=True,
@@ -36,8 +38,8 @@ net = cv2.dnn.readNetFromCaffe(args["prototxt"], args["model"])
 # (note: normalization is done via the authors of the MobileNet SSD
 # implementation)
 
-
-def detect(frame):
+f = 0 
+def detect(frame,f):
     image = frame.copy()
     (h, w) = image.shape[:2]
     blob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 0.007843, (300, 300), 127.5)
@@ -52,6 +54,7 @@ def detect(frame):
 
     # loop over the detections
     for i in np.arange(0, detections.shape[2]):
+        
         # extract the confidence (i.e., probability) associated with the
         # prediction
         confidence = detections[0, 0, i, 2]
@@ -67,23 +70,32 @@ def detect(frame):
             idx = int(detections[0, 0, i, 1])
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             (startX, startY, endX, endY) = box.astype("int")
+            
+            if idx == 15:
+                
+                f += 1 
 
-            # display the prediction
-            label = "{}: {:.2f}%".format(CLASSES[idx], confidence * 100)
-            print("[INFO] {}".format(label))
-            cv2.rectangle(image, (startX, startY), (endX, endY),
-                COLORS[idx], 2)
-            y = startY - 15 if startY - 15 > 15 else startY + 15
-            cv2.putText(image, label, (startX, y),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2)
+                if f > 10:
 
-            results.append((CLASSES[idx], confidence*100, (startX, startY),(endX, endY) ))
+                    # display the prediction
+                    label = "{}: {:.2f}%".format(CLASSES[idx], confidence * 100)
+                    print("[INFO] {}".format(label))
+                    cv2.rectangle(image, (startX, startY), (endX, endY),
+                        COLORS[idx], 2)
+                    y = startY - 15 if startY - 15 > 15 else startY + 15
+                    cv2.putText(image, label, (startX, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2)
+
+                    results.append((CLASSES[idx], confidence*100, (startX, startY),(endX, endY) ))
+            else:
+                f == 0
 
     # show the output image
-    return image, results
+    return image, results,f
 
 
 
+import time
 
 
 
@@ -91,15 +103,16 @@ import cv2
 
 #cap = cv2.VideoCapture('hall_box_battery_1024.mp4')
 cap = cv2.VideoCapture(0)
-
+f = 0 
 print("Known classes")
 print(CLASSES)
-
 while(True):
     # Capture frame-by-frame
     ret, frame = cap.read()
     
-    result_frame, result_tuples = detect(frame)
+    result_frame, result_tuples, result_f = detect(frame,f)
+    f = result_f
+    print (result_f)
 
 
     # Display the resulting frame
@@ -108,6 +121,7 @@ while(True):
     # Prints the structures results:
     # Format:
     # ("CLASS", confidence, (x1, y1, x2, y3))
+    
     for t in result_tuples:
         print(t)
 
