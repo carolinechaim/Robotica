@@ -1,3 +1,4 @@
 teste-1.mp4 filter=lfs diff=lfs merge=lfs -text
 teste-2.mp4 filter=lfs diff=lfs merge=lfs -text
 teste-3.mp4 filter=lfs diff=lfs merge=lfs -text
+aula03/yolov3_detection/yolov3-coco/yolov3.weights filter=lfs diff=lfs merge=lfs -text
