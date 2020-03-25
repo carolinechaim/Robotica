@@ -2,9 +2,18 @@
 import cv2
 import numpy as np 
 
+#utilizar min_length da captura para melhores resultados
+#senão utilizar valor default
+
+default_min_length = 200
+min_length = default_min_length
+
 #cap = cv2.VideoCapture('teste-1.mp4')
+#min_length = 150
+
 cap = cv2.VideoCapture('teste-2.mp4')
 #cap = cv2.VideoCapture('teste-3.mp4')
+min_length = 250
 
 if (cap.isOpened()== False):
     print ("error")
@@ -32,6 +41,42 @@ def auto_canny(image, sigma=0.33):
 	# return the edged image
 	return edged
 
+def desenhar_reta_media(a, b, rho):
+    x0 = a*rho
+    y0 = b*rho
+    x1 = int(x0 + 10000*(-b))
+    y1 = int(y0 + 10000*(a))
+    x2 = int(x0 - 10000*(-b))
+    y2 = int(y0 - 10000*(a))
+    cv2.line(frame,(x1,y1),(x2,y2),(0,0,255),1)
+
+def interseccao(a1, b1, rho1, a2, b2, rho2):
+    x0_1 = a1*rho1
+    y0_1 = b1*rho1
+    x1_1 = int(x0_1 + 10000*(-b1))
+    y1_1 = int(y0_1 + 10000*(a1))
+    x2_1 = int(x0_1 - 10000*(-b1))
+    y2_1 = int(y0_1 - 10000*(a1))
+
+    m_1 = (y2_1 - y1_1) / (x2_1 - x1_1)
+    h_1 = y1_1 - (m_1 * x1_1)
+
+    x0_2 = a2*rho2
+    y0_2 = b2*rho2
+    x1_2 = int(x0_2 + 10000*(-b2))
+    y1_2 = int(y0_2 + 10000*(a2))
+    x2_2 = int(x0_2 - 10000*(-b2))
+    y2_2 = int(y0_2 - 10000*(a2))
+
+    m_2 = (y2_2 - y1_2) / (x2_2 - x1_2)
+    h_2 = y1_2 - (m_2 * x1_2)
+
+    x_ponto = (h_2 - h_1) / (m_1 - m_2)
+    y_ponto = int((m_1 * x_ponto) + h_1)
+    x_ponto = int(x_ponto)
+
+    cv2.circle(frame,(x_ponto,y_ponto),10,(0,255,0),-1)
+
 while (cap.isOpened()):
     ret,frame = cap.read()
     lista_ab = []
@@ -54,7 +99,7 @@ while (cap.isOpened()):
         max_contrast = 250
         linhas = cv2.Canny(blur, min_contrast, max_contrast )
         bordas_color = cv2.cvtColor(linhas, cv2.COLOR_RGB2BGR)
-        lines = cv2.HoughLines(linhas, 1, np.pi/180, 150)
+        lines = cv2.HoughLines(linhas, 1, np.pi/180, min_length)
         if lines is not None:
             for line in lines:
                 rho, theta = line[0]
@@ -62,11 +107,11 @@ while (cap.isOpened()):
                 b = np.sin(theta)
                 lista_ab.append([a, b, rho])
             for abrho in lista_ab:
-                if abrho[0] < 0:
+                if -18 < abrho[0] < -0.1 :
                     a_esq.append(abrho[0])
                     b_esq.append(abrho[1])
                     rho_esq.append(abrho[2])
-                elif abrho[0] > 0:
+                elif 18 > abrho[0] > 0.1 :
                     a_dir.append(abrho[0])
                     b_dir.append(abrho[1])
                     rho_dir.append(abrho[2])
@@ -81,38 +126,13 @@ while (cap.isOpened()):
             bMed_dir = sum(b_dir) / len(b_dir)
             rhoMed_dir = sum(rho_dir) / len(rho_dir)
         
-        x0_esq = aMed_esq*rhoMed_esq
-        y0_esq = bMed_esq*rhoMed_esq
-        x1_esq = int(x0_esq + 10000*(-bMed_esq))
-        y1_esq = int(y0_esq + 10000*(aMed_esq))
-        x2_esq = int(x0_esq - 10000*(-bMed_esq))
-        y2_esq = int(y0_esq - 10000*(aMed_esq))
-        m_e = (y1_esq-y2_esq)/(x1_esq-x2_esq)
-        h_esq = int(y1_esq - m_e*x1_esq)
-        cv2.line(frame,(x1_esq,y1_esq),(x2_esq,y2_esq),(0,0,255),1)
-
-        x0_dir = aMed_dir*rhoMed_dir
-        y0_dir = bMed_dir*rhoMed_dir
-        x1_dir = int(x0_dir + 10000*(-bMed_dir))
-        y1_dir = int(y0_dir + 10000*(aMed_dir))
-        x2_dir = int(x0_dir - 10000*(-bMed_dir))
-        y2_dir = int(y0_dir - 10000*(aMed_dir))
-        m_d = (y1_dir- y2_dir)/(x1_dir-x2_esq)
-        h_dir = int(y1_dir - m_d*x1_dir)
-        cv2.line(frame,(x1_dir,y1_dir),(x2_dir,y2_dir),(0,0,255),1)
-
+        desenhar_reta_media(aMed_esq, bMed_esq, rhoMed_esq)
+        desenhar_reta_media(aMed_dir, bMed_dir, rhoMed_dir)
+        interseccao(aMed_esq, bMed_esq, rhoMed_esq, aMed_dir, bMed_dir, rhoMed_dir)
         
-        
-        xi = int((h_dir- h_esq)/(m_e-m_d))
-        yi = int(m_e*xi + h_esq)
-
-        cv2.circle(frame, (xi,yi), 30, (0,0,225), -1)
-
-
         font = cv2.FONT_HERSHEY_SIMPLEX
         cv2.putText(mask1,'Press q to quit',(0,50), font, 1,(255,255,255),2,cv2.LINE_AA)
         cv2.imshow ('Frame', frame)
-
 
         if cv2.waitKey(25) & 0XFF == ord('q'):
             break
